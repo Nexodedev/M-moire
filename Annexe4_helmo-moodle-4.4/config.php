@@ -1,0 +1,2 @@
+<?php  // Moodle configuration file
+

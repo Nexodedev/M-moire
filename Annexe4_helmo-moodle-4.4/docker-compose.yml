@@ -1,0 +1,63 @@
+services:
+  mariadb:
+    image: mariadb
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${moodle_database_name}
+      MYSQL_USER: ${moodle_database_username}
+      MYSQL_PASSWORD: ${moodle_database_password}
+      MYSQL_ROOT_PASSWORD: ${mariadb_root_password}
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized" ]
+      start_period: 15s
+      interval: 5s
+      timeout: 5s
+      retries: 55
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./configs:/etc/mysql/conf.d
+
+  moodle:
+    image: git-registry.helmo.be/si/infrastructure/helmo-moodle:4.4
+    depends_on:
+       mariadb:
+          condition: service_healthy
+    ports:
+      - '8080:80'
+    environment:
+      MOODLE_DBTYPE: mariadb
+      MOODLE_DBHOST: mariadb
+      MOODLE_DBNAME: ${moodle_database_name}
+      MOODLE_DBUSER: ${moodle_database_username}
+      MOODLE_DBPASS: ${moodle_database_password}
+      MOODLE_PUBLICURI: ${moodle_public_uri}
+      MOOODLE_DATAROOT: /mnt/learnData/moodle-data
+      MOODLE_PASSWORD_SALT: ${moodle_password_salt}
+    volumes:
+      - moodle_data:/mnt/learnData/moodle-data/
+    entrypoint: /bin/sh -c "bash /usr/local/bin/script_upgrade.sh && apache2-foreground"
+   
+
+  cron:
+    container_name: cron_container
+    image: git-registry.helmo.be/si/infrastructure/helmo-moodle:4.4
+    depends_on:
+       mariadb:
+          condition: service_healthy
+    entrypoint: cron -f
+    environment:
+      MOODLE_DBTYPE: mariadb
+      MOODLE_DBHOST: mariadb
+      MOODLE_DBNAME: ${moodle_database_name}
+      MOODLE_DBUSER: ${moodle_database_username}
+      MOODLE_DBPASS: ${moodle_database_password}
+      MOODLE_PUBLICURI: ${moodle_public_uri}
+      MOOODLE_DATAROOT: /mnt/learnData/moodle-data
+      MOODLE_PASSWORD_SALT: ${moodle_password_salt}
+    volumes:
+      - moodle_data:/mnt/learnData/moodle-data/
+
+volumes:
+  mariadb_data:
+  moodle_data:
+
